@@ -378,3 +378,40 @@
     action-type: (string-ascii 50) ;; "parameter-change", "asset-addition", etc.
   }
 )
+
+(define-constant ERR_PROTECTION_ALREADY_ACTIVE (err u240))
+(define-constant ERR_PROTECTION_NOT_FOUND (err u241))
+
+(define-map liquidation-protection
+  { user: principal }
+  {
+    protection-fee-paid: uint,
+    protection-expires: uint,
+    max-protection-amount: uint
+  }
+)
+
+(define-data-var protection-fee-rate uint u50) ;; 0.5% fee for protection
+
+(define-public (purchase-liquidation-protection (protection-amount uint) (duration-blocks uint))
+  (let 
+    (
+      (fee (/ (* protection-amount (var-get protection-fee-rate)) u10000))
+      (expiry-block (+ stacks-block-height duration-blocks))
+    )
+    
+    (asserts! (is-none (map-get? liquidation-protection { user: tx-sender })) ERR_PROTECTION_ALREADY_ACTIVE)
+    
+    (map-set liquidation-protection
+      { user: tx-sender }
+      {
+        protection-fee-paid: fee,
+        protection-expires: expiry-block,
+        max-protection-amount: protection-amount
+      }
+    )
+    
+    (ok true)
+  )
+)
+
